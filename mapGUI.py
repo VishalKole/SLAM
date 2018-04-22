@@ -57,8 +57,10 @@ class Mapper(tk.Frame):
     	x = [int((localX/RESOLUTION)+(WIDTH/2)), int((-1*(localY/RESOLUTION))+(HEIGHT/2))]
         return x
 
+    """
+    prints all the particles provided to the function and displays the map
+    """
     def particle_update(self, particles):
-    
     	for point in particles:
 		[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
     		self.mappix[x , y] = (255, 0,0)
@@ -101,6 +103,9 @@ class Mapper(tk.Frame):
     def getDistance(self,x1,y1,x2,y2):
         return math.sqrt(math.pow((x1-x2),2)+math.pow((y1-y2),2))
 
+    """
+    returns the left, center and the right distance of the local pixel(as provided in the map from the website)
+    """
     def getReading(self, x, y, t):
         endpoints = []
         [x, y] = self.LocaltoGlobal(x, y)
@@ -109,28 +114,17 @@ class Mapper(tk.Frame):
             [tx, ty] = self.angleToXY(angle,128)
             locx = x+int(math.floor(tx))
             locy = y+int(math.floor(ty))
-            #print(str(x)+" "+str(y)+" "+str(locx)+" "+str(locy)+" ")
             allpoints = (list(self.bresenham(x,y,locx, locy)))
-            #print(allpoints)
-            #print(len(allpoints))
             flag = False
             for point in allpoints:
                 if point[0] >=0 and point[0] <=2000 and point[1] >=0 and point[1] <=700 :   
-                    #print(str(self.mappix[point[0], point[1]]) + str([point[0], point[1]]))
                     if self.mappix[point[0], point[1]][0] == 0 and self.mappix[point[0], point[1]][1] == 0 and self.mappix[point[0], point[1]][2] == 0:
-                        #print(str(self.mappix[point[0], point[1]]) + str([point[0], point[1]]))
-                        #print(self.getDistance(x,y,point[0],point[1]))                        
                         flag = True
                         endpoints.append(self.getDistance(x,y,point[0],point[1])*RESOLUTION)
                         break
 
             if flag == False:
                 endpoints.append(self.getDistance(x,y,allpoints[-1][0],allpoints[-1][1])*RESOLUTION)
-
-        print(endpoints)
-        input()
-        #for points in all points:
-         #   print(points)
 
 
 def main():
