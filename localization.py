@@ -31,7 +31,7 @@ class Particle():
 
 	def __init__(self,x,y,t,w):
 		self.pose = Pose(x,y,t)
-		self.weights= w
+		self.weight= w
 
 
 class ParticleFilter():
@@ -58,12 +58,10 @@ class ParticleFilter():
 		self.sonar = None
 		self.particles = list()
 		self.init_with_values()
-		#self.init_particles()
 		self.previous_odom = None
-		self.img = mpimg.imread('/home/stu11/s3/vvk3025/catkin_ws/src/prj/src/project.png')
 
 
-	def predict2(self):
+	def predict(self):
 		"""
 		compute delta(odom) and apply to each particle
 		"""
@@ -80,11 +78,6 @@ class ParticleFilter():
 			theta2 = 2*math.atan2(zr,wr)
 			thetar = theta - theta2
 			dist = math.sqrt(xr**2 + yr**2)
-			
-			#print("thetar = " +str(thetar))
-			#print("xr = " +str(xr))
-			#print("yr = " +str(yr))
-			#print("dist = " + str(dist))
 			
 			for particle_number in range(len(self.particles)):
 				
@@ -106,8 +99,15 @@ class ParticleFilter():
 		
 			
 	def update(self):
-
+		
+		new = list()
+		for item in self.particles:
+			if item.weight != -1:
+				new.append(item)
+		self.particles = new
+		
 		self.mapper.particle_update(self.particles)
+		
 		#self.mapper.getReading(8.0, -0.5, math.pi/2)
 		
 	
@@ -117,7 +117,7 @@ class ParticleFilter():
 	
 	def odom_callback(self,data):
 		self.odom= data
-		self.predict2()
+		self.predict()
 		self.update()
 		
 
