@@ -44,7 +44,7 @@ class Mapper(tk.Frame):
         self.oddsvals = [[1.0 for _ in range(WIDTH)] for _ in range(HEIGHT)]
 
         self.canvas = tk.Canvas(self,width=WIDTH, height=HEIGHT)
-        self.last_particles = None
+        self.last_particles = list()
         self.map_on_canvas = self.canvas.create_image(WIDTH/2, HEIGHT/2, image = self.mapimage)
         self.canvas.pack()
         self.pack()
@@ -62,16 +62,16 @@ class Mapper(tk.Frame):
     """
     def particle_update(self, particles):
 		
-		if self.last_particles is not None:
+		if self.last_particles:
 			for point in self.last_particles:
-				[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
-				self.mappix[x , y] = (255, 255,255)
+				self.mappix[point[0],point[1]] = (255, 255,255)
 		
-		self.last_particles = particles[:]
+		self.last_particles = list()
 		
 		for point in particles:
 			[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
 			self.mappix[x , y] = (255, 0,0)
+			self.last_particles.append([x , y])
 		self.after(0,self.update_image)
 
         #computes the X and Y coordinates for an angle and distance from the center
