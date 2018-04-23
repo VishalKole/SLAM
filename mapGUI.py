@@ -110,6 +110,12 @@ class Mapper(tk.Frame):
 
     def getDistance(self,x1,y1,x2,y2):
         return math.sqrt(math.pow((x1-x2),2)+math.pow((y1-y2),2))
+        
+    def isPixelInMap(self, xv, yv):
+		point = self.LocaltoGlobal(xv, yv)
+		if (self.mappix[point[0], point[1]][0] != 0 or self.mappix[point[0], point[1]][1] != 0 or self.mappix[point[0], point[1]][2] != 0):
+			return True
+		return False
 
     """
     returns the left, center and the right distance of the local pixel(as provided in the map from the website)

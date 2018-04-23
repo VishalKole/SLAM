@@ -90,10 +90,12 @@ class ParticleFilter():
 				
 				self.particles[particle_number].pose.theta += thetar
 				[xn ,yn ] = self.angleToXY(self.particles[particle_number].pose.theta,dist)
-				self.particles[particle_number].pose.x += xn
-				self.particles[particle_number].pose.y += yn
-			
-			
+				if self.mapper.isPixelInMap(self.particles[particle_number].pose.x+xn, self.particles[particle_number].pose.y+yn):
+					self.particles[particle_number].pose.x += xn
+					self.particles[particle_number].pose.y += yn
+				else:
+					self.particles[particle_number].weight = -1
+					
 		self.previous_odom = self.odom
 	
 	def angleToXY(self, theta, dist):
@@ -101,31 +103,13 @@ class ParticleFilter():
 		y = dist * math.sin(theta)
 		return [x, y]
 
-	def predict(self):
-		"""
-		compute delta(odom) and apply to each particle
-		"""
-		
-		# current robot position
-		xr    = self.odom.pose.pose.position.x
-		yr    = self.odom.pose.pose.position.y
-		z     = self.odom.pose.pose.orientation.z
-		w     = self.odom.pose.pose.orientation.w
-		thetar = 2*math.atan2(z,w)	
-		dist = math.sqrt(xr**2 + yr**2)
-		
-		# translate and rotate the particles
-		particles.pose.xp =  particles.pose.xp + xr
-		particles.pose.yp =  particles.pose.yp + yr
-		particles.pose.thetap = particles.pose.thetap + thetar
 		
 			
 	def update(self):
-		
+
 		self.mapper.particle_update(self.particles)
 		#self.mapper.getReading(8.0, -0.5, math.pi/2)
 		
-	
 	
 	def resample(self):
 		pass
@@ -133,8 +117,8 @@ class ParticleFilter():
 	
 	def odom_callback(self,data):
 		self.odom= data
-		self.update()
 		self.predict2()
+		self.update()
 		
 
 	def laser_callback(self,data):
