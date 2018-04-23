@@ -22,7 +22,7 @@ from sensor_msgs.msg import LaserScan
 WIDTH = 2000
 HEIGHT = 700
 PARTICLE_SIZE = 10
-RESOLUTION = 0.0627
+RESOLUTION = 0.063
 
 class Mapper(tk.Frame):
 
@@ -125,7 +125,7 @@ class Mapper(tk.Frame):
         [x, y] = self.LocaltoGlobal(x, y)
         
         for angle in [t-(math.pi/2),t,t+(math.pi/2)]:    
-            [tx, ty] = self.angleToXY(angle,128)
+            [tx, ty] = self.angleToXY(angle,(8/ RESOLUTION))
             locx = x+int(math.floor(tx))
             locy = y+int(math.floor(ty))
             allpoints = (list(self.bresenham(x,y,locx, locy)))
@@ -139,6 +139,13 @@ class Mapper(tk.Frame):
 
             if flag == False:
                 endpoints.append(self.getDistance(x,y,allpoints[-1][0],allpoints[-1][1])*RESOLUTION)
+        
+        endpoints.reverse()
+        #adding robot width
+        endpoints[0] -= 0.308
+        endpoints[2] -= 0.187
+                
+        return endpoints
 
 
 def main():

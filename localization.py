@@ -43,6 +43,7 @@ class ParticleFilter():
 			   (10.8, 12.7, math.pi),(-54.5, 7.6, math.pi/2), (8.0, -1.5,-math.pi/2)]
 		theta = [ -0.2, -0.1 , 0, 0.1, 0.2 ]
 
+
 		for i in locations:
 			for x in area:
 				for y in area:
@@ -100,6 +101,23 @@ class ParticleFilter():
 			
 	def update(self):
 		
+		left_sensor = self.sonar.ranges[0]
+		right_sensor = self.sonar.ranges[7]
+		center_sensor = self.laser.ranges[320]
+		
+		if center_sensor == float("inf") or center_sensor >8.0:
+			center_sensor = 8.0 # max distance from laser
+		threshold = 0.2
+		
+		
+		for item in self.particles:
+			particle_reading = self.mapper.getReading(item.pose.x,item.pose.y,item.pose.theta)
+			if math.fabs(left_sensor - particle_reading[0]) <threshold and math.fabs(right_sensor - particle_reading[2]) <threshold and math.fabs(center_sensor - particle_reading[1]) <threshold:
+				item.weight += 1 
+			else:
+				item.weight -= 1 
+		
+					
 		new = list()
 		for item in self.particles:
 			if item.weight != -1:
@@ -108,7 +126,6 @@ class ParticleFilter():
 		
 		self.mapper.particle_update(self.particles)
 		
-		#self.mapper.getReading(8.0, -0.5, math.pi/2)
 		
 	
 	def resample(self):
