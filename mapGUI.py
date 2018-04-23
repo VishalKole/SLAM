@@ -22,7 +22,7 @@ from sensor_msgs.msg import LaserScan
 WIDTH = 2000
 HEIGHT = 700
 PARTICLE_SIZE = 10
-RESOLUTION = 0.0625
+RESOLUTION = 0.0627
 
 class Mapper(tk.Frame):
 
@@ -35,7 +35,7 @@ class Mapper(tk.Frame):
         # self.themap = Image.new("L",(MAPSIZE,MAPSIZE),128)
 
         # read project map image
-        self.themap = Image.open("/home/fac/catkin_ws/src/hw3/src/project.png").convert("RGB")
+        self.themap = Image.open("/home/stu11/s3/vvk3025/catkin_ws/src/prj/src/project.png").convert("RGB")
         self.mapimage = ImageTk.PhotoImage(self.themap)
 
         # this gives us directly memory access to the image pixels:

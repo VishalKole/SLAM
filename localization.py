@@ -59,7 +59,37 @@ class ParticleFilter():
 		self.particles = list()
 		self.init_with_values()
 		#self.init_particles()
-		self.img = mpimg.imread('/home/fac/catkin_ws/src/hw3/src/project.png')
+		self.previous_odom = None
+		self.img = mpimg.imread('/home/stu11/s3/vvk3025/catkin_ws/src/prj/src/project.png')
+
+
+	def predict2(self):
+		"""
+		compute delta(odom) and apply to each particle
+		"""
+
+		if self.previous_odom is not None:
+			# current robot position
+			xr    = self.odom.pose.pose.position.x - self.previous_odom.pose.pose.position.x
+			yr    = self.odom.pose.pose.position.y - self.previous_odom.pose.pose.position.y
+			z     = self.odom.pose.pose.orientation.z - self.previous_odom.pose.pose.orientation.z
+			w     = self.odom.pose.pose.orientation.w - self.previous_odom.pose.pose.orientation.w
+			thetar = 2*math.atan2(z,w)	
+			dist = math.sqrt(xr**2 + yr**2)
+			
+			# translate and rotate the particles
+			#particles.pose.xp =  particles.pose.xp + xr
+			#particles.pose.yp =  particles.pose.yp + yr
+			#particles.pose.thetap = particles.pose.thetap + thetar
+			
+			for particle_number in range(len(self.particles)):
+				self.particles[particle_number].pose.x += xr
+				self.particles[particle_number].pose.y += yr
+				self.particles[particle_number].pose.theta += thetar
+			
+			
+		self.previous_odom = self.odom
+
 
 
 	def predict(self):
@@ -82,8 +112,11 @@ class ParticleFilter():
 		
 			
 	def update(self):
+		
 		self.mapper.particle_update(self.particles)
-		self.mapper.getReading(8.0, -0.5, math.pi/2)
+		#self.mapper.getReading(8.0, -0.5, math.pi/2)
+		
+	
 	
 	def resample(self):
 		pass
@@ -92,6 +125,7 @@ class ParticleFilter():
 	def odom_callback(self,data):
 		self.odom= data
 		self.update()
+		self.predict2()
 		
 
 	def laser_callback(self,data):
