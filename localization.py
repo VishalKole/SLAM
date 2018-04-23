@@ -40,7 +40,7 @@ class ParticleFilter():
 		
 		area = np.arange(-0.8, 0.8, 0.1)
 		locations =  [(8.0, -0.5, math.pi/2), (-12.0, 	12.0, math.pi), (-18.4, -8.9, 0), \
-			   (10.8, 12.7, math.pi),(-54.5, 7.6, math.pi/2), (8.0, -1.5, math.pi/2)]
+			   (10.8, 12.7, math.pi),(-54.5, 7.6, math.pi/2), (8.0, -1.5,-math.pi/2)]
 		theta = [ -0.2, -0.1 , 0, 0.1, 0.2 ]
 
 		for i in locations:
@@ -72,25 +72,34 @@ class ParticleFilter():
 			# current robot position
 			xr    = self.odom.pose.pose.position.x - self.previous_odom.pose.pose.position.x
 			yr    = self.odom.pose.pose.position.y - self.previous_odom.pose.pose.position.y
-			z     = self.odom.pose.pose.orientation.z - self.previous_odom.pose.pose.orientation.z
-			w     = self.odom.pose.pose.orientation.w - self.previous_odom.pose.pose.orientation.w
-			thetar = 2*math.atan2(z,w)	
+			z     = self.odom.pose.pose.orientation.z
+			zr     = self.previous_odom.pose.pose.orientation.z
+			w     = self.odom.pose.pose.orientation.w
+			wr     = self.previous_odom.pose.pose.orientation.w
+			theta = 2*math.atan2(z,w)	
+			theta2 = 2*math.atan2(zr,wr)
+			thetar = theta - theta2
 			dist = math.sqrt(xr**2 + yr**2)
 			
-			# translate and rotate the particles
-			#particles.pose.xp =  particles.pose.xp + xr
-			#particles.pose.yp =  particles.pose.yp + yr
-			#particles.pose.thetap = particles.pose.thetap + thetar
+			#print("thetar = " +str(thetar))
+			#print("xr = " +str(xr))
+			#print("yr = " +str(yr))
+			#print("dist = " + str(dist))
 			
 			for particle_number in range(len(self.particles)):
-				self.particles[particle_number].pose.x += xr
-				self.particles[particle_number].pose.y += yr
+				
 				self.particles[particle_number].pose.theta += thetar
+				[xn ,yn ] = self.angleToXY(self.particles[particle_number].pose.theta,dist)
+				self.particles[particle_number].pose.x += xn
+				self.particles[particle_number].pose.y += yn
 			
 			
 		self.previous_odom = self.odom
-
-
+	
+	def angleToXY(self, theta, dist):
+		x = dist * math.cos(theta)
+		y = dist * math.sin(theta)
+		return [x, y]
 
 	def predict(self):
 		"""

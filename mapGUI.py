@@ -44,7 +44,7 @@ class Mapper(tk.Frame):
         self.oddsvals = [[1.0 for _ in range(WIDTH)] for _ in range(HEIGHT)]
 
         self.canvas = tk.Canvas(self,width=WIDTH, height=HEIGHT)
-
+        self.last_particles = None
         self.map_on_canvas = self.canvas.create_image(WIDTH/2, HEIGHT/2, image = self.mapimage)
         self.canvas.pack()
         self.pack()
@@ -61,10 +61,18 @@ class Mapper(tk.Frame):
     prints all the particles provided to the function and displays the map
     """
     def particle_update(self, particles):
-    	for point in particles:
-		[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
-    		self.mappix[x , y] = (255, 0,0)
-	self.after(0,self.update_image)
+		
+		if self.last_particles is not None:
+			for point in self.last_particles:
+				[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
+				self.mappix[x , y] = (255, 255,255)
+		
+		self.last_particles = particles[:]
+		
+		for point in particles:
+			[x, y] = self.LocaltoGlobal(point.pose.x, point.pose.y)
+			self.mappix[x , y] = (255, 0,0)
+		self.after(0,self.update_image)
 
         #computes the X and Y coordinates for an angle and distance from the center
     def angleToXY(self, theta, dist):
