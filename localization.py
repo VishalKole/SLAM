@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from p2os_msgs.msg import SonarArray
 import numpy as np
-
+from random import randint
 import Tkinter as tk
 from PIL import Image
 import ImageTk
@@ -48,8 +48,10 @@ class ParticleFilter():
 			for x in area:
 				for y in area:
 					for t in theta:
-						self.particles.append(Particle(i[0]+x,i[1]+y,i[2]+t,0.0))
-					
+						self.particles.append(Particle(i[0]+x,i[1]+y,i[2]+t,0.5))
+		
+		self.total_particles = len(self.particles)
+
 
 	def __init__(self,m):
 		
@@ -58,8 +60,10 @@ class ParticleFilter():
 		self.laser= None
 		self.sonar = None
 		self.particles = list()
-		self.init_with_values()
 		self.previous_odom = None
+		self.total_particles = None
+		self.init_with_values()
+
 
 
 	def predict(self):
@@ -88,7 +92,7 @@ class ParticleFilter():
 					self.particles[particle_number].pose.x += xn
 					self.particles[particle_number].pose.y += yn
 				else:
-					self.particles[particle_number].weight = -1
+					self.particles[particle_number].weight = 0.0
 					
 		self.previous_odom = self.odom
 	
@@ -107,20 +111,28 @@ class ParticleFilter():
 		
 		if center_sensor == float("inf") or center_sensor >8.0:
 			center_sensor = 8.0 # max distance from laser
-		threshold = 0.2
-		
+		threshold = 0.1	
+		percent_change = 1.1
 		
 		for item in self.particles:
 			particle_reading = self.mapper.getReading(item.pose.x,item.pose.y,item.pose.theta)
-			if math.fabs(left_sensor - particle_reading[0]) <threshold and math.fabs(right_sensor - particle_reading[2]) <threshold and math.fabs(center_sensor - particle_reading[1]) <threshold:
-				item.weight += 1 
+			if math.fabs(left_sensor - particle_reading[0]) <threshold :
+				item.weight *= percent_change 
 			else:
-				item.weight -= 1 
+				item.weight /= percent_change
+			if math.fabs(right_sensor - particle_reading[2]) <threshold:
+				item.weight *= percent_change
+			else:
+				item.weight /= percent_change
+			if math.fabs(center_sensor - particle_reading[1]) <threshold:
+				item.weight *= percent_change
+			else:
+				item.weight /= percent_change
 		
 					
 		new = list()
 		for item in self.particles:
-			if item.weight != -1:
+			if item.weight > 0.3:
 				new.append(item)
 		self.particles = new
 		
@@ -129,6 +141,25 @@ class ParticleFilter():
 		
 	
 	def resample(self):
+		theta = [0, -0.1 , 0, 0.1,0 ]
+		self.particles.sort(key=lambda x: -x.weight)
+		
+		if self.total_particles - len(self.particles) > 0:
+			new = list(self.particles)
+			#print("total particles ="+str(self.total_particles))
+			#print("iteration ="+str((self.total_particles - len(self.particles))))
+			#print("length of particles"+str(len(self.particles)))
+			
+			for j in range(self.total_particles - len(self.particles)):
+				i = j% (len(self.particles))
+				new.append(Particle(self.particles[i].pose.x + random.uniform(0.1,0.2) , self.particles[i].pose.y + random.uniform(0.1,0.2), self.particles[i].pose.theta + random.choice(theta),  self.particles[i].weight ))		
+				#new.append(Particle(self.particles[i].pose.x, self.particles[i].pose.y, self.particles[i].pose.theta, self.particles[i].weight ))		
+			#print("old = " +str(len(self.particles))+" new = " + str(len(new)))
+			self.particles = new
+		
+		
+		
+	def converge(self):
 		pass
 	
 	
@@ -136,6 +167,7 @@ class ParticleFilter():
 		self.odom= data
 		self.predict()
 		self.update()
+		self.resample()
 		
 
 	def laser_callback(self,data):
