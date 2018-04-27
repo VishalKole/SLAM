@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+"""
+Vishal Kole
+Mounika Alluri
+Shih Ting 
+
+Particle filter for localization with 6 initial probable locations.
+"""
 import rospy, cv2 as cv, matplotlib.image as mpimg, numpy as np, math
 from mapGUI import Mapper
 from nav_msgs.msg import OccupancyGrid
@@ -14,13 +21,16 @@ import ImageTk
 import random
 import rospy
 from sensor_msgs.msg import LaserScan
-
+from p2os_msgs.msg import SonarArray
+from geometry_msgs.msg import Twist
+from std_msgs.msg import String
 
 WIDTH = 2000
 HEIGHT = 700
 PARTICLE_SIZE = 10
 
 class Pose():
+
 	def __init__(self,x,y,t):
 		self.x = x
 		self.y = y
@@ -36,13 +46,29 @@ class Particle():
 
 class ParticleFilter():
 
+
+	def __init__(self,m):
+
+		self.mapper = m
+		self.odom = None
+		self.laser= None
+		self.sonar = None
+		self.previous_odom = None
+		self.total_particles = None
+		self.particles = list()
+		self.twist = Twist()
+		self.init_with_values()
+		self.safe_wander()
+		self.pub_vel = rospy.Publisher('/r1/cmd_vel', Twist, queue_size=10)
+		self.pub_pose = rospy.Publisher('/r1/localization', String, queue_size = 10)
+	
+
 	def init_with_values(self):
 
 		area = np.arange(-0.8, 0.8, 0.1)
 		locations =  [(8.0, -0.5, math.pi/2), (-12.0, 	12.0, math.pi), (-18.4, -8.9, 0), \
 			   (10.8, 12.7, math.pi),(-54.5, 7.6, math.pi/2), (8.0, -1.5,-math.pi/2)]
 		theta = [ -0.2, -0.1 , 0, 0.1, 0.2 ]
-
 
 		for i in locations:
 			for x in area:
@@ -53,19 +79,22 @@ class ParticleFilter():
 		self.total_particles = len(self.particles)
 
 
-	def __init__(self,m):
-
-		self.mapper = m
-		self.odom = None
-		self.laser= None
-		self.sonar = None
-		self.particles = list()
-		self.previous_odom = None
-		self.total_particles = None
-		self.init_with_values()
-
-
-
+	def safe_wander(self):
+		"""
+		move forward without running into obstacles until convergence
+		"""
+	
+		safe_dist = 0.8
+		if self.sonar.ranges[0] > safe_dist  and self.sonar.ranges[7] >safe_dist:	
+			self.twist.linear.x = 0.1
+		elif self.sonar.ranges[0] <safe_dist:
+			self.twist.angular.z = 0.1
+		elif self.sonar.ranges[7] <safe_dist:
+			self.twist.angular.z = -0.1
+		else:
+			print("I'm trapped")
+		
+			
 	def predict(self):
 		"""
 		compute delta(odom) and apply to each particle
@@ -73,16 +102,16 @@ class ParticleFilter():
 
 		if self.previous_odom is not None:
 			# current robot position
-			xr    = self.odom.pose.pose.position.x - self.previous_odom.pose.pose.position.x
-			yr    = self.odom.pose.pose.position.y - self.previous_odom.pose.pose.position.y
-			z     = self.odom.pose.pose.orientation.z
+			xr     = self.odom.pose.pose.position.x - self.previous_odom.pose.pose.position.x
+			yr     = self.odom.pose.pose.position.y - self.previous_odom.pose.pose.position.y
+			z      = self.odom.pose.pose.orientation.z
 			zr     = self.previous_odom.pose.pose.orientation.z
-			w     = self.odom.pose.pose.orientation.w
+			w      = self.odom.pose.pose.orientation.w
 			wr     = self.previous_odom.pose.pose.orientation.w
-			theta = 2*math.atan2(z,w)
+			theta  = 2*math.atan2(z,w)
 			theta2 = 2*math.atan2(zr,wr)
 			thetar = theta - theta2
-			dist = math.sqrt(xr**2 + yr**2)
+			dist   = math.sqrt(xr**2 + yr**2)
 
 			for particle_number in range(len(self.particles)):
 
@@ -96,14 +125,20 @@ class ParticleFilter():
 
 		self.previous_odom = self.odom
 
+
 	def angleToXY(self, theta, dist):
+		"""
+		Convert odom to 
+		"""
 		x = dist * math.cos(theta)
 		y = dist * math.sin(theta)
 		return [x, y]
 
 
-
 	def update(self):
+		"""
+		Update the particle weights based on sensor data
+		"""
 
 		left_sensor = self.sonar.ranges[0]
 		right_sensor = self.sonar.ranges[7]
@@ -128,19 +163,19 @@ class ParticleFilter():
 				item.weight *= percent_change
 			else:
 				item.weight /= percent_change
-
-
+				
 		new = list()
 		for item in self.particles:
 			if item.weight > 0.3:
 				new.append(item)
 		self.particles = new
-
 		self.mapper.particle_update(self.particles)
 
 
-
 	def resample(self):
+		"""
+		Delete particles with lower weights and duplicate particles with higher weights
+		"""
 		theta = [0, -0.1 , 0, 0.1, 0]
 		self.particles.sort(key=lambda x: -x.weight)
 
@@ -158,8 +193,10 @@ class ParticleFilter():
 			self.particles = new
 
 
-
 	def converge(self):
+		"""
+		 Estimate pose of robot as mean of particles if sum of squared erros is less than 10  
+		"""
 		threshold_converge = 10
 		center = Pose(0, 0, 0)
 		sumX, sumY, sumT = 0, 0, 0
@@ -174,10 +211,11 @@ class ParticleFilter():
 			p = self.particles[i]
 			dist = math.sqrt(math.pow((p.pose.x - center.x),2) + math.pow((p.pose.y - center.y), 2))
 			if dist > threshold_converge:
-				print(str(i) + ': (' + str(center.x) + ',' + str(center.y) + ')')
+				print("center"+ str(i) + ': (' + str(center.x) + ',' + str(center.y) + ')')
 				return
 		print(len(self.particles))
 		self.particles = Particle(center.x, center.y, sumT/n, 1)
+		pub_pose.publish(str(self.particles.pose))
 
 
 	def odom_callback(self,data):
@@ -191,17 +229,18 @@ class ParticleFilter():
 	def laser_callback(self,data):
 		self.laser = data
 
+
 	def sonar_callback(self,data):
 		self.sonar = data
-
 
 
 def main():
 
 	root = tk.Tk()
 	m = Mapper(master=root,height=WIDTH,width=HEIGHT)
-
 	pf = ParticleFilter(m)
+	
+	# initialize nodes and subscribers
 	rospy.init_node("particle_filter", anonymous=True)
 	rospy.Subscriber("/r1/odom", Odometry, pf.odom_callback, queue_size = 1)
 	rospy.Subscriber("/r1/kinect_laser/scan", LaserScan, pf.laser_callback, queue_size = 1)
