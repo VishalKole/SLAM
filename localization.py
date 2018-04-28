@@ -54,7 +54,8 @@ class ParticleFilter():
 		self.previous_right = None
 		self.pub_vel = rospy.Publisher("/r1/cmd_vel", Twist, queue_size=1)
 		# self.pub_pose = rospy.Publisher('/r1/localization', String, queue_size = 10)
-
+		self.start_time = time.time()
+		self.end_time = None
 
 	def init_with_values(self):
 
@@ -121,27 +122,39 @@ class ParticleFilter():
 		threshold = 0.1
 		percent_change = 1.1
 
+		max_wgt = 0
+
 		for item in self.particles:
 			particle_reading = self.mapper.getReading(item.pose.x,item.pose.y,item.pose.theta)
+			# total side distance
 			if math.fabs(left_sensor + right_sensor - ( particle_reading[0] +  particle_reading[2])) < threshold:
 				item.weight *= percent_change
 			else:
 				item.weight /= percent_change
 
+			# left side distance
 			if math.fabs(left_sensor - particle_reading[0]) <threshold :
 				item.weight *= percent_change
 			else:
 				item.weight /= percent_change
 
+			# right side distance
 			if math.fabs(right_sensor - particle_reading[2]) <threshold:
 				item.weight *= percent_change
 			else:
 				item.weight /= percent_change
 
+			# front distance
 			if math.fabs(center_sensor - particle_reading[1]) <threshold:
 				item.weight *= percent_change
 			else:
 				item.weight /= percent_change
+
+			# normalize weight
+			max_wgt = item.weight if item.weight > max_wgt else max_wgt
+
+		for item in self.particles:
+			item.weight /= max_wgt
 
 
 		new = list()
@@ -173,9 +186,11 @@ class ParticleFilter():
 
 
 	def converge(self):
+		# threshold_converge_sse = 10
 		threshold_converge = 2
 		center = Pose(0, 0, 0)
 		sumX, sumY, sumT = 0, 0, 0
+		sse = 0
 		n = len(self.particles)
 		for p in self.particles:
 			sumX += p.pose.x
@@ -190,11 +205,22 @@ class ParticleFilter():
 				print(str(i) + ': (' + str(center.x) + ',' + str(center.y) + ')')
 				self.converged = False
 				return
+
+			# sse += (math.pow((p.pose.x - center.x),2) + math.pow((p.pose.y - center.y), 2))
+			if dist > threshold_converge:
+				# if sse > threshold_converge_sse:
+				print(str(i) + ': (' + str(center.x) + ',' + str(center.y) + ')')
+				# print('SSE: ' + str(sse))
+				self.converged = False
+				print('Time: ' + str(time.time() - self.start_time))
+				return
+
 		print(len(self.particles))
 		# update particles as mean the particle
 		self.particles = [Particle(center.x, center.y, sumT/n, 1)]
 		self.converged = True
 		print('Converged at: ' + str(center.x) + ','+ str(center.y))
+		print('Time: ' + str(time.time() - self.start_time))
 		# self.pub_pose.publish(str(self.particles.pose))
 
 
@@ -223,16 +249,15 @@ class ParticleFilter():
 		self.velMsg.linear.x = 0.1
 		left_sensor = self.sonar.ranges[1]
 		right_sensor = self.sonar.ranges[6]
-		if self.previous_left != None and self.previous_right != None:
-			if left_sensor < right_sensor:
-				self.velMsg.angular.z = -0.1
-				print('turn right')
-			elif left_sensor > right_sensor:
-				self.velMsg.angular.z = 0.1
-				print('turn left')
-			else:
-				self.velMsg.angular.z = 0
-				print('go straight')
+		if left_sensor < right_sensor:
+			self.velMsg.angular.z = -0.1
+			print('turn right')
+		elif left_sensor > right_sensor:
+			self.velMsg.angular.z = 0.1
+			print('turn left')
+		else:
+			self.velMsg.angular.z = 0
+			print('go straight')
 
 		if self.sonar.ranges[3] < 0.5 or self.sonar.ranges[4] < 0.5:
 			print('too close: stop')
@@ -241,6 +266,7 @@ class ParticleFilter():
 				self.velMsg.angular.z = -0.1
 			else:
 				self.velMsg.angular.z = 0.1
+
 		self.previous_left = left_sensor
 		self.previous_right = right_sensor
 		self.pub_vel.publish(self.velMsg)
