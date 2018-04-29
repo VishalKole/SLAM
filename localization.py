@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+"""
+Vishal Kole
+Mounika Alluri
+Shih Ting 
+Particle filter for localization with 6 initial probable locations.
+"""
+
 import rospy, cv2 as cv, matplotlib.image as mpimg, numpy as np, math
 from mapGUI import Mapper
 from nav_msgs.msg import OccupancyGrid
@@ -15,6 +22,8 @@ import random
 import rospy
 from sensor_msgs.msg import LaserScan
 from geometry_msgs.msg import Twist
+from std_msgs.msg import String
+#from p2os_msgs.msg import MotorState
 import time
 
 WIDTH = 2000
@@ -53,7 +62,7 @@ class ParticleFilter():
 		self.previous_left = None
 		self.previous_right = None
 		self.pub_vel = rospy.Publisher("/r1/cmd_vel", Twist, queue_size=1)
-		# self.pub_pose = rospy.Publisher('/r1/localization', String, queue_size = 10)
+		self.pub_pose = rospy.Publisher('/r1/localization', String, queue_size = 10)
 		self.start_time = time.time()
 		self.end_time = None
 
@@ -108,7 +117,6 @@ class ParticleFilter():
 		x = dist * math.cos(theta)
 		y = dist * math.sin(theta)
 		return [x, y]
-
 
 
 	def update(self):
@@ -186,6 +194,8 @@ class ParticleFilter():
 
 
 	def converge(self):
+		global root 
+		
 		# threshold_converge_sse = 10
 		threshold_converge = 2
 		center = Pose(0, 0, 0)
@@ -221,21 +231,14 @@ class ParticleFilter():
 		self.converged = True
 		print('Converged at: ' + str(center.x) + ','+ str(center.y))
 		print('Time: ' + str(time.time() - self.start_time))
-		# self.pub_pose.publish(str(self.particles.pose))
+		self.pub_pose.publish(str(self.particles[0].pose))
+		root.quit()
+		rospy.signal_shutdown("Shutting down Localization node...........")
+		
 
 
 	def odom_callback(self,data):
 		self.odom= data
-		self.predict()
-		self.update()
-		if not self.converged:
-			self.resample()
-			self.goForward()
-			self.converge()
-		else:
-			self.velMsg.linear.x = 0
-			self.velMsg.angular.z = 0
-			self.pub_vel.publish(self.velMsg)
 
 
 	def laser_callback(self,data):
@@ -243,8 +246,20 @@ class ParticleFilter():
 
 	def sonar_callback(self,data):
 		self.sonar = data
+		
+		self.predict()
+		self.update()
+		if not self.converged:
+			self.resample()
+			self.safe_wander()
+			self.converge()
+		else:
+			self.velMsg.linear.x = 0
+			self.velMsg.angular.z = 0
+			self.pub_vel.publish(self.velMsg)
 
-	def goForward(self):
+	def safe_wander(self):
+	
 		self.velMsg = Twist()
 		self.velMsg.linear.x = 0.1
 		left_sensor = self.sonar.ranges[1]
@@ -272,9 +287,8 @@ class ParticleFilter():
 		self.pub_vel.publish(self.velMsg)
 
 
-
 def main():
-
+	global root 
 	root = tk.Tk()
 	m = Mapper(master=root,height=WIDTH,width=HEIGHT)
 	pf = ParticleFilter(m)
@@ -282,6 +296,8 @@ def main():
 	rospy.Subscriber("/r1/odom", Odometry, pf.odom_callback, queue_size = 1)
 	rospy.Subscriber("/r1/kinect_laser/scan", LaserScan, pf.laser_callback, queue_size = 1)
 	rospy.Subscriber("/r1/sonar", SonarArray, pf.sonar_callback, queue_size = 1)
+	# rospy.Subscriber('/scan', LaserScan, m.laser_update, queue_size=1)
+        # rospy.Subscriber('/pose', Odometry, m.odom_callback, queue_size=1)
 	root.mainloop()
 
 
