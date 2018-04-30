@@ -17,6 +17,16 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import LaserScan
 from p2os_msgs.msg import SonarArray
 from p2os_msgs.msg import MotorState
+from mapGUI import *
+import Tkinter as tk
+from std_msgs.msg import String
+from PIL import Image
+import matplotlib.image as img, math, heapq as hq
+
+WIDTH = 2000
+HEIGHT = 700
+PARTICLE_SIZE = 10
+RESOLUTION = 0.063
 
 #global data
 pub = None
@@ -33,6 +43,73 @@ wall_follow = None
 sonar = None
 sensor_active = None
 pub_motor= None
+mapr = None
+
+class Pose():
+	def __init__(self,x,y,t):
+		self.x = x
+		self.y = y
+		self.theta = t
+
+class Particle():
+	def __init__(self,x,y,t,w):
+		self.pose = Pose(x,y,t)
+		self.weight= w
+
+#localdata = Particle(0.0, 0.0, math.pi/2,0)
+localdata = Particle(8.0, -0.5, math.pi/2,0)
+#localdata = None
+
+######################################################################
+path = None
+######################################################################
+
+root = tk.Tk()
+mapper = Mapper(master=root,height=WIDTH,width=HEIGHT)
+
+
+class Heuristics:
+	def getHeuristicCost(self, current, destination):
+		return math.sqrt(math.pow((current[0] - destination[0]), 2) +
+						 math.pow((current[1] - destination[1]), 2))
+
+
+class Astar:
+	def __init__(self, fmap, heuristics):
+		self.mapr = fmap
+		self.heuristics = heuristics
+		self.heap = []
+		self.trace = []
+	
+	def LocaltoGlobal(self,localX, localY):
+		x = [int((localX/RESOLUTION)+(WIDTH/2)), int((-1*(localY/RESOLUTION))+(HEIGHT/2))]
+		return x
+	
+	def childIn(self, child, child_list):
+		for tuples in child_list:
+			if tuples[1][0] == child[0] and tuples[1][1] == child[1]:
+				return True
+		return False
+
+	def searchPath(self, start, destination):
+		hq.heappush(self.heap, (0, start))
+		while self.heap:
+			current_element = hq.heappop(self.heap)
+			self.trace.append(current_element)
+			if current_element[1][0] == destination[0] and current_element[1][1] == destination[1]:
+				ret = []
+				for items in self.trace:
+					ret.append(items[1])
+				self.trace = list()
+				self.heap = list()
+				return ret
+			else:
+				childrens = self.mapr.getChildren(current_element[1])
+				for childs in childrens:
+					if not self.childIn(childs, self.heap) and not self.childIn(childs, self.trace):
+						hq.heappush(self.heap,
+									# (current_element[0] + 2.0 +
+									(self.heuristics.getHeuristicCost(childs, destination), childs))
 
 #get the coordinates
 def instantiate_fileCoordinates():
@@ -42,6 +119,83 @@ def instantiate_fileCoordinates():
 	for line in file:
 		line_split = line.strip().split()
 		coordinates.append([float(line_split[0]),float(line_split[1])])
+
+
+class CustomMap:
+	def __init__(self, fmap):
+		self.mapr = fmap
+	
+	def validate(self, themap, x, y):
+		diff = 6
+		if themap.getValue(x+diff, y+diff) != (0,0,0) and themap.getValue(x+diff, y) != (0,0,0) and themap.getValue(x+diff, y-diff) != (0,0,0) and themap.getValue(x, y-diff) != (0,0,0) and themap.getValue(x-diff, y-diff) != (0,0,0) and themap.getValue(x-diff, y) != (0,0,0) and themap.getValue(x-diff, y+diff) != (0,0,0) and themap.getValue(x, y+diff) != (0,0,0):
+			return True
+		return False
+		
+
+	def getChildren(self, point):
+		global mapper
+		#print(mapper)
+		#print(mapper.getValue( point[0], point[1]))
+		childrens = []
+		diff = 4
+		
+		for i in [-1, +1, 0]:
+			for j in [-1, +1, 0]:
+				if self.validate(mapper, (point[0]+i) ,(point[1]+j)):
+					childrens.append([point[0] + i, point[1] + j])
+		childrens.pop()
+		return childrens
+	
+def GlobaltoLocal(localX, localY):
+		x = [ ((localX-(WIDTH/2))*RESOLUTION) , -1*((localY-(HEIGHT/2))*RESOLUTION)   ]
+		return x
+
+def pixeltoglobal():
+	global path
+	new = list()
+	for loc in path:
+		new.append(GlobaltoLocal(loc[0],loc[1]))
+	path = new
+	
+
+def transformation(self):
+
+	# current position 
+	x_r 	= self.odom.pose.pose.position.x
+	y_r 	= self.odom.pose.pose.position.y
+	z   	= self.odom.pose.pose.orientation.z
+	w 	= self.odom.pose.pose.orientation.w
+	theta_r = 2*(math.atan2(z,w))
+	
+	#localized pose
+	x_l     =  self.localized_pose.x
+	y_l     =  self.localized_pose.y
+	theta_l =  self.localized_pose.t
+	
+	# new origin
+	h     = x_l - x_r 
+	k     = y_l - y_r
+	alpha = theta_l - theta_r
+	
+	
+def getPath():
+	global localdata
+	global path
+	#cmap = CustomMap(img.imread("/home/stu11/s3/Mappervvk3025/catkin_ws/src/prj/src/project.png"))
+	cmap = CustomMap(img.imread("/home/stu12/s9/ma8658/catkin_ws/src/project/src/project.png"))
+	
+	heuristics = Heuristics()
+	search = Astar(cmap, heuristics)
+	start = [localdata.pose.x, localdata.pose.y]
+	start = search.LocaltoGlobal(start[0],start[1])
+	destination = [coordinates[0][0], coordinates[0][1]]
+	destination = search.LocaltoGlobal(destination[0],destination[1])
+	start = [start[0], start[1]]
+	destination = [destination[0] , destination[1]]
+	path = search.searchPath(start, destination)
+	print(path[0])
+	pixeltoglobal()
+	print(path[0])
 
 def instantiate_parameters():
 	global twist_obj
@@ -53,6 +207,10 @@ def instantiate_parameters():
 	global wall_follow
 	global left_done
 	global sensor_active
+	global mapr
+	#root = tk.Tk()
+	#mapr = 
+	Mapper(master=root,height=WIDTH,width=HEIGHT)
 	sensor_active = " "
 	wall_follow = False
 	right_done = False
@@ -64,18 +222,37 @@ def instantiate_parameters():
 def instantiate_publisher():
 	global pub
 	global pub_motor		
-	pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-        pub_motor= rospy.Publisher('/cmd_motor_state',MotorState, queue_size=10)
+	#pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+	pub = rospy.Publisher('r1/cmd_vel', Twist, queue_size=10)
+	#pub_motor= rospy.Publisher('/cmd_motor_state',MotorState, queue_size=10)
 
 def getSonar(data):
 	global sonar
+	global localdata
+	global mapper
+	global path
+	#print(sonar)
 	sonar = data
+	if not localdata is None:
+		getPath()
+		mapper.printpath(path)
+
+		#walk()
+		#obstacle_detection()
+		#maneuver_robot()
 
 def instantiate_subscribers():
 	#sub_scan = rospy.Subscriber('/kinect_laser/scan', LaserScan, callback_scan)
-	rospy.Subscriber('/sonar',SonarArray, getSonar)
-	rospy.Subscriber("/pose", Odometry, callbackOdom)	
+	#rospy.Subscriber('/sonar',SonarArray, getSonar)
+	rospy.Subscriber('/r1/sonar',SonarArray, getSonar)
+	#rospy.Subscriber("/pose", Odometry, callbackOdom)	
+	rospy.Subscriber("/r1/odom", Odometry, callbackOdom)	
+	rospy.Subscriber("/r1/localization", String, LocalizationCallback,queue_size=1)
 
+def LocalizationCallback(data):
+	global localdata
+	localdata = data
+	
 
 def publish_twist(angular=0,linear=0):
 	global twist_obj
@@ -110,19 +287,19 @@ def walk():
 	cur_y = odom.pose.pose.position.y
 	cur_z = odom.pose.pose.orientation.z
 	cur_w = odom.pose.pose.orientation.w
-        
+		
 	cur_theta = 2*math.atan2(cur_z,cur_w)
 	if cur_theta> math.pi:
 		cur_theta = ((math.pi) + ( math.pi - cur_theta))*-1
 	if cur_theta< -1*math.pi:
 		cur_theta = ((math.pi) - (( math.pi + cur_theta)*-1))
 	
-	goal_theta = math.atan2((coordinates[0][1]-cur_y),(coordinates[0][0]-cur_x))
+	goal_theta = math.atan2((coordinates[0][1]-cMapperur_y),(coordinates[0][0]-cur_x))
 	angle_diff = goal_theta - cur_theta
 	dist = math.sqrt((coordinates[0][0] - cur_x)**2 + (coordinates[0][1] - cur_y)**2)  
 	angle_difference = angle_diff
 
-	
+	"""
 	print("____________________________________\n" +
 	"x "+str(cur_x)+"\n"+
 	"y "+str(cur_y)+"\n"+
@@ -139,7 +316,7 @@ def walk():
 	"left_done: " + str(left_done)+"\n"+
 	"wall_follow: " + str(wall_follow)+"\n"+
 	"sensor_active: " + str(sensor_active))
-	
+	"""
 
 	#turning function
 	if(math.fabs(angle_diff)>angle_threshold and math.fabs(dist)>error_dist) and not hasObstacle:
@@ -161,9 +338,10 @@ def walk():
 		coordinates.pop(0)
 
 		if not coordinates:
-			rospy.loginfo("********* Done, Shutting down **********")
-			rospy.signal_shutdown('Shut Down')
-                  
+			pass
+			#rospy.loginfo("********* Done, Shutting down **********")
+			#rospy.signal_shutdown('Shut Down')
+				  
 
 
 def callbackOdom(data):
@@ -173,10 +351,7 @@ def callbackOdom(data):
 	odom = data
 	rate = rospy.Rate(10)
 	rate.sleep()
-	pub_motor.publish(1)
-	walk()
-	obstacle_detection()
-	maneuver_robot()
+	#pub_motor.publish(1)
 
 
 def callback_scan(data):
@@ -236,14 +411,14 @@ def maneuver_robot():
   
 	right_thresh = 0.8
 
-        #wall follow to the left
+		#wall follow to the left
 	if sensor_active == "right" and angle_difference <(math.pi/2)- right_thresh and angle_difference >(math.pi/2)+ right_thresh  :
 		hasObstacle = False
 		sensor_active = " "
 		wall_follow = False
 		right_done = False
 
-        #wall follow to the right
+		#wall follow to the right
 	if sensor_active == "left" and angle_difference <-(math.pi/2)- right_thresh  and angle_difference >-(math.pi/2)+ right_thresh :
 		hasObstacle = False
 		sensor_active = " "
@@ -299,15 +474,27 @@ def obstacle_detection():
 	
 	
 def main():
+	global root
 	instantiate_fileCoordinates()
 	instantiate_publisher()
 	instantiate_parameters()
 	rospy.init_node('Explorer', anonymous=True)
 	instantiate_subscribers()
-	rospy.spin()
+	root.mainloop()
+
 
 if __name__ == '__main__':
 	try:
 		main()
 	except rospy.ROSInterruptException:
 		pass
+
+
+
+
+
+
+
+
+
+
