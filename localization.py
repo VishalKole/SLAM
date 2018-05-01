@@ -3,7 +3,7 @@
 """
 Vishal Kole
 Mounika Alluri
-Shih Ting 
+Shih Ting
 Particle filter for localization with 6 initial probable locations.
 """
 
@@ -194,8 +194,8 @@ class ParticleFilter():
 
 
 	def converge(self):
-		global root 
-		
+		global root
+
 		# threshold_converge_sse = 10
 		threshold_converge = 2
 		center = Pose(0, 0, 0)
@@ -234,7 +234,7 @@ class ParticleFilter():
 		self.pub_pose.publish(str(self.particles[0].pose))
 		root.quit()
 		rospy.signal_shutdown("Shutting down Localization node...........")
-		
+
 
 
 	def odom_callback(self,data):
@@ -246,7 +246,7 @@ class ParticleFilter():
 
 	def sonar_callback(self,data):
 		self.sonar = data
-		
+
 		self.predict()
 		self.update()
 		if not self.converged:
@@ -259,22 +259,24 @@ class ParticleFilter():
 			self.pub_vel.publish(self.velMsg)
 
 	def safe_wander(self):
-	
+
+		safe_dist = 0.5
 		self.velMsg = Twist()
 		self.velMsg.linear.x = 0.1
 		left_sensor = self.sonar.ranges[1]
 		right_sensor = self.sonar.ranges[6]
-		if left_sensor < right_sensor:
-			self.velMsg.angular.z = -0.1
-			print('turn right')
-		elif left_sensor > right_sensor:
-			self.velMsg.angular.z = 0.1
-			print('turn left')
+		if self.sonar.ranges[0] < safe_dist or self.sonar.ranges[7] < safe_dist:
+			if left_sensor < right_sensor:
+				self.velMsg.angular.z = -0.1
+				print('turn right')
+			elif left_sensor > right_sensor:
+				self.velMsg.angular.z = 0.1
+				print('turn left')
 		else:
 			self.velMsg.angular.z = 0
 			print('go straight')
 
-		if self.sonar.ranges[3] < 0.5 or self.sonar.ranges[4] < 0.5:
+		if self.sonar.ranges[3] < 1 or self.sonar.ranges[4] < 1:
 			print('too close: stop')
 			self.velMsg.linear.x = 0
 			if self.sonar.ranges[3] < self.sonar.ranges[4]:
@@ -288,7 +290,7 @@ class ParticleFilter():
 
 
 def main():
-	global root 
+	global root
 	root = tk.Tk()
 	m = Mapper(master=root,height=WIDTH,width=HEIGHT)
 	pf = ParticleFilter(m)
