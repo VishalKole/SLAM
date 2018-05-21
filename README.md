@@ -18,7 +18,7 @@ base on the map given particle global location and orientation. We compare the r
 #### (b) Simulation
 **Starting location 1**
 ```
-Video: https://youtu.be/eBJFBz7LyWc
+https://youtu.be/eBJFBz7LyWc
 ```
 Particles from location 2, 3, 4, and 5 were eliminated because of low probabilities, only
 particles from location 1 and 6 remained at the beginning after few seconds. Both of
@@ -28,7 +28,7 @@ be distinguished until one cluster reaches the T-intersection. It converged at p
 
 **Starting location 2**
 ```
-Video: https://youtu.be/JuIq3j97OGI
+https://youtu.be/JuIq3j97OGI
 ```
 It is easy to get confused between starting location 2 and 3. They both have a similar
 distance of hallway and front open space. But, once the robot started passing over the
@@ -53,9 +53,9 @@ way-points.
 
 #### (b) Simulation
 ```
-Video: https://drive.google.com/open?id=1KGq6OPEN0yz9VdlACjPwNIcJUa18Iesx
-Video: https://drive.google.com/open?id=1W6vOTzQzdhDQE_wtl0Q1CXhJWC81bFwr
-Video: https://drive.google.com/open?id=14PPVv0Z8l9ejWOXFiN1eNIJBR9maS8So
+https://drive.google.com/open?id=1KGq6OPEN0yz9VdlACjPwNIcJUa18Iesx
+https://drive.google.com/open?id=1W6vOTzQzdhDQE_wtl0Q1CXhJWC81bFwr
+https://drive.google.com/open?id=14PPVv0Z8l9ejWOXFiN1eNIJBR9maS8So
 ```
 The above videos are the A-star path planning algorithm results for different points in
 the map. We are showing all the possible points it consider but it selects only the shortest
@@ -77,8 +77,8 @@ cases, the path planner tries to go forward and backward along the initial path.
 We tested the project on Gazebo before testing it on hardware and below are the links
 to the video of end to end execution of the project.
 ```
-Video: https://drive.google.com/open?id=1Cqg76KO6twYS3xS2BhMwG9scApS2M3H5
-Video: https://drive.google.com/open?id=1JQ8aDrVjVeq5z5lFrxvfguLNQk64CouL
+https://drive.google.com/open?id=1Cqg76KO6twYS3xS2BhMwG9scApS2M3H5
+https://drive.google.com/open?id=1JQ8aDrVjVeq5z5lFrxvfguLNQk64CouL
 ```
 
 ### Hardware testing results
