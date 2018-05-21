@@ -88,4 +88,8 @@ The localization also successfully converged to Clark’s global location (-18.2
 in 84 seconds
 
 ![](https://github.com/VishalKole/SLAM/blob/master/HW%20test.PNG)
+
+The localization successfully converged to robot’s global location (-0.03, 12.38, 3.21) in
+131 seconds
+
 ![](https://github.com/VishalKole/SLAM/blob/master/HW%20test-loc1.PNG)
